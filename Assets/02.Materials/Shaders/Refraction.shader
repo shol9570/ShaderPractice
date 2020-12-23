@@ -1,50 +1,54 @@
-﻿Shader "Custom/Refraction"
+﻿Shader "SHOL/Refraction"
 {
     Properties
     {
-        _Color ("Color", Color) = (1,1,1,1)
-        _MainTex ("Albedo (RGB)", 2D) = "white" {}
-        _Glossiness ("Smoothness", Range(0,1)) = 0.5
-        _Metallic ("Metallic", Range(0,1)) = 0.0
+        // _Color ("Color", Color) = (1,1,1,1)
+        // _MainTex ("Albedo (RGB)", 2D) = "white" {}
+        // _Glossiness ("Smoothness", Range(0,1)) = 0.5
+        // _Metallic ("Metallic", Range(0,1)) = 0.0
+        _CenterDistort("Center distort strength", Range(0,1)) = 0.0
+        _CircleTex("Circle texture", 2D) = "white" {}
     }
-    GrabPass{
-        "_GrabTexture"
-    }
+
     SubShader
     {
-        Tags { "RenderType"="Opaque" }
+        Tags { "RenderType"="Transparent" "Queue"="Transparent" }
         LOD 200
+        zWrite Off
+        Cull Off
+
+        GrabPass{ }
 
         CGPROGRAM
-        // Physically based Standard lighting model, and enable shadows on all light types
-        #pragma surface surf Standard fullforwardshadows
-
-        // Use shader model 3.0 target, to get nicer looking lighting
+        #pragma surface surf nolight noambient alpha:fade
         #pragma target 3.0
+        #include "UnityCG.cginc"
 
-        sampler2D _MainTex;
+        sampler2D _CircleTex;
         sampler2D _GrabTexture;
+        float _CenterDistort;
 
         struct Input
         {
-            float2 uv_MainTex;
+            float2 uv_CircleTex;
+            float4 screenPos;
         };
 
-        half _Glossiness;
-        half _Metallic;
-        fixed4 _Color;
+        //UNITY_INSTANCING_BUFFER_START(Props)
+        //UNITY_INSTANCING_BUFFER_END(Props)
 
-        UNITY_INSTANCING_BUFFER_START(Props)
-        UNITY_INSTANCING_BUFFER_END(Props)
-
-        void surf (Input IN, inout SurfaceOutputStandard o)
+        void surf (Input IN, inout SurfaceOutput o)
         {
-            half4 screenPos = ComputeGrabScreenPos(o.vertex);
-            fixed4 c = tex2D (_GrabTexture, IN.uv_MainTex) * _Color;
-            o.Albedo = c.rgb;
-            o.Metallic = _Metallic;
-            o.Smoothness = _Glossiness;
-            o.Alpha = c.a;
+            float3 screenUV = IN.screenPos.xyz / IN.screenPos.w;
+            float nearCenter = 1 - tex2D(_CircleTex, IN.uv_CircleTex).x;// * sin(radians(frac(_Time.y) * 180));
+            float3 adjustedUV = (screenUV - 0.5) / (1 - pow(0.5, 10 * nearCenter * (1 - _CenterDistort)) * _CenterDistort) + 0.5;//(screenUV - 0.5) / ((-log10(1 + nearCenter * 9) - 1) * _CenterDistort) + 0.5;
+            o.Emission = tex2D(_GrabTexture, adjustedUV);
+            o.Alpha = 1;
+        }
+
+        float4 Lightingnolight(SurfaceOutput s, float3 lightDir, float atten)
+        {
+            return float4(0,0,0,1);
         }
         ENDCG
     }
