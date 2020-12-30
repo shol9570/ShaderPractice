@@ -5,17 +5,29 @@ using UnityEngine;
 
 public class WarpEffectTest : MonoBehaviour
 {
-    private Material warp;
+    public Material m_WarpEffectMaterial;
     public GameObject m_WarpTarget;
+    public Vector3 m_WarpDestination;
     
     void Start()
     {
-        warp = this.GetComponent<MeshRenderer>().material;
+        
+    }
+
+    private void Update()
+    {
+        if (Input.GetMouseButtonUp(1))
+        {
+            m_WarpDestination = Camera.main.ScreenToWorldPoint(Input.mousePosition) + Camera.main.transform.forward * 2f;
+        }
     }
 
     IEnumerator WarpEffect()
     {
-        CreateWarpBound(m_WarpTarget);
+        GameObject effect = CreateWarpBound(m_WarpTarget, m_WarpDestination);
+        Destroy(effect, 1.1f);
+        Material warp = effect.GetComponent<MeshRenderer>().material;
+        yield return null;
         float startTime = Time.time;
         float timeDiff = 0;
         while (timeDiff < 1)
@@ -25,24 +37,43 @@ public class WarpEffectTest : MonoBehaviour
             yield return null;
         }
         warp.SetFloat("_CenterDistort", 0f);
+        yield return null;
     }
     
-    void CreateWarpBound(GameObject _target, Vector3 _destination)
+    GameObject CreateWarpBound(GameObject _target, Vector3 _destination)
     {
         //Warp effect plane mesh data
-        Mesh warpBox;
+        Mesh warpPlane = new Mesh();
         Vector3[] vertices = new Vector3[5];
         int[] tris = new int[12];
         Vector2[] uvs = new Vector2[5];
 
         //Basic datas to create effect
-        Bounds bounds = _target.GetComponent<MeshRenderer>().bounds;
-        Vector3 obj2Cam = _target.transform.position - Camera.main.transform.position;
+        MeshRenderer[] targetMeshRenderers = _target.GetComponentsInChildren<MeshRenderer>();
+        SkinnedMeshRenderer[] targetSkinnedMeshRenderers = _target.GetComponentsInChildren<SkinnedMeshRenderer>();
+        Bounds[] bounds = new Bounds[targetMeshRenderers.Length + targetSkinnedMeshRenderers.Length];
+        Vector3 targetCenter = Vector3.zero;
+        float objMaxLength = 0f;
+        for (int i = 0; i < targetMeshRenderers.Length; i++)
+        {
+            bounds[i] = targetMeshRenderers[i].bounds;
+            targetCenter += bounds[i].center;
+            if (bounds[i].max.magnitude > objMaxLength) objMaxLength = bounds[i].max.magnitude;
+        }
+        for (int i = 0; i < targetSkinnedMeshRenderers.Length; i++)
+        {
+            int index = i + targetMeshRenderers.Length;
+            bounds[index] = targetSkinnedMeshRenderers[i].bounds;
+            targetCenter += bounds[index].center;
+            if (bounds[index].max.magnitude > objMaxLength) objMaxLength = bounds[index].max.magnitude;
+        }
+        targetCenter /= bounds.Length;
+        Vector3 obj2Cam = Camera.main.transform.position - targetCenter;
+        float obj2CamDiff = obj2Cam.magnitude - 0.1f;
         obj2Cam.Normalize();
         Vector3 right = Camera.main.transform.right;
         Vector3 up = Camera.main.transform.up;
-        float objMaxLength = bounds.max.magnitude;
-        Vector3 nearest2Obj = obj2Cam * objMaxLength;
+        Vector3 nearest2Obj = targetCenter + obj2Cam * (objMaxLength > obj2CamDiff ? obj2CamDiff : objMaxLength);
 
         //Convert world destination point on effect plane position
         Vector3 cameraLocalPlaneCenter = Camera.main.transform.InverseTransformPoint(nearest2Obj);
@@ -53,17 +84,18 @@ public class WarpEffectTest : MonoBehaviour
         center2DestOnPlane.Normalize();
 
         //Warp effect plane mesh data initialize
-        Vector3 center = center2DestOnPlaneDiff > objMaxLength ? center2DestOnPlane * objMaxLength : destOnEffectPlane;
+        Vector3 center = center2DestOnPlaneDiff > objMaxLength * 0.5f ? nearest2Obj + center2DestOnPlane * objMaxLength * 0.5f : nearest2Obj + center2DestOnPlane * center2DestOnPlaneDiff;
         Vector3 leftBottom = nearest2Obj - right * objMaxLength - up * objMaxLength;
         Vector3 leftUpper = nearest2Obj - right * objMaxLength + up * objMaxLength;
         Vector3 rightBottom = nearest2Obj + right * objMaxLength - up * objMaxLength;
         Vector3 rightUpper = nearest2Obj + right * objMaxLength + up * objMaxLength;
 
-        vertices[0] = nearest2Obj;
-        vertices[1] = leftBottom;
-        vertices[2] = leftUpper;
-        vertices[3] = rightBottom;
-        vertices[4] = rightUpper;
+        vertices[0] = center - nearest2Obj;
+        vertices[1] = leftBottom - nearest2Obj;
+        vertices[2] = leftUpper - nearest2Obj;
+        vertices[3] = rightBottom - nearest2Obj;
+        vertices[4] = rightUpper - nearest2Obj;
+        print(vertices[0]);
 
         tris[0] = 0;
         tris[1] = 2;
@@ -84,13 +116,29 @@ public class WarpEffectTest : MonoBehaviour
         uvs[3] = new Vector2(1f, 0f);
         uvs[4] = new Vector2(1f, 1f);
 
+        warpPlane.vertices = vertices;
+        warpPlane.triangles = tris;
+        warpPlane.uv = uvs;
+        warpPlane.RecalculateNormals();
+        warpPlane.RecalculateTangents();
+
         //Create object
+        GameObject warpEffect = new GameObject("WarpEffect");
+        warpEffect.transform.position = nearest2Obj;
+        warpEffect.transform.SetParent(_target.transform);
 
         //attach material
+        MeshFilter meshFilter = warpEffect.AddComponent<MeshFilter>();
+        MeshRenderer meshRenderer = warpEffect.AddComponent<MeshRenderer>();
+        meshFilter.mesh = warpPlane;
+        meshRenderer.material = m_WarpEffectMaterial;
+
+        meshRenderer.material.SetVector("_WarpFocus", new Vector2((vertices[0].x + objMaxLength) / (2 * objMaxLength), (vertices[0].y + objMaxLength) / (2 * objMaxLength)));//new Vector2(0.5f, 0.5f));
 
         //attach script
+        warpEffect.AddComponent<WarpEffect>();
 
-        
+        return warpEffect;
     }
 
     private void OnGUI()
@@ -98,6 +146,7 @@ public class WarpEffectTest : MonoBehaviour
         if (GUI.Button(new Rect(new Vector2(0,0), new Vector2(100,50)), "Play"))
         {
             StopAllCoroutines();
+
             StartCoroutine(WarpEffect());
         }
     }

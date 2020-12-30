@@ -55,7 +55,7 @@
                 float nearCenter = tex2D(_CircleTex, _in.uv).x;
                 if (nearCenter == 0) clip(-1);
                 float4 adjustedUV = float4(0,0,0,1);
-                adjustedUV.xy = (screenUV - _WarpFocus) / pow(1 - _CenterDistort * 0.999, 2 * nearCenter) + _WarpFocus;
+                adjustedUV.xy = (screenUV - _WarpFocus) / pow(1 - _CenterDistort * 0.999, 10 * nearCenter) + _WarpFocus;
                 fixed4 color = tex2Dproj(_GrabTexture, adjustedUV);
                 return color;
             }
