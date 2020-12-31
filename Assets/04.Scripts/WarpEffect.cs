@@ -19,7 +19,7 @@ public class WarpEffect : MonoBehaviour
 
     void Update()
     {
-        
+        LookCamera();
 //        if (m_Mat == null) return;
 //#if UNITY_EDITOR
 //        Vector2 screenPos = Camera.main.WorldToScreenPoint(this.transform.position);
@@ -64,7 +64,16 @@ public class WarpEffect : MonoBehaviour
     IEnumerator LookCameraCoroutine(Vector3 _from, float _diff)
     {
         Transform parent = this.transform.parent;
-        this.transform.LookAt(Camera.main.transform);
-        yield return null;
+        while (true)
+        {
+            Vector3 baseCoord = parent.position + _from;
+            Vector3 base2Cam = Camera.main.transform.position - baseCoord;
+            float base2CamDiff = (base2Cam.magnitude - Camera.main.nearClipPlane) * 0.75f;
+            base2Cam.Normalize();
+            this.transform.position = base2CamDiff < _diff ? baseCoord + base2Cam * base2CamDiff : baseCoord + base2Cam * _diff;
+            this.transform.LookAt(Camera.main.transform);
+
+            yield return null;
+        }
     }
 }

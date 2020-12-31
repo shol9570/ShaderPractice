@@ -15,9 +15,9 @@ public class LookObjectRotationCamera : MonoBehaviour
         Camera cam = Camera.main;
         cycle += Mathf.PI * 2 * Time.deltaTime / m_RotateCycle;
         Vector3 targetPos = new Vector3(
-            Mathf.Sin(cycle) * m_RotateDistance.z,
+            m_Target.position.x + Mathf.Sin(cycle) * m_RotateDistance.z,
             m_Target.position.y,
-            Mathf.Cos(cycle) * m_RotateDistance.z
+            m_Target.position.z + Mathf.Cos(cycle) * m_RotateDistance.z
             );
         cam.transform.position = targetPos;
         cam.transform.LookAt(m_Target);

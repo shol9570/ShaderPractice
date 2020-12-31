@@ -69,11 +69,11 @@ public class WarpEffectTest : MonoBehaviour
         }
         targetCenter /= bounds.Length;
         Vector3 obj2Cam = Camera.main.transform.position - targetCenter;
-        float obj2CamDiff = obj2Cam.magnitude - 0.1f;
+        float obj2CamDiff = (obj2Cam.magnitude - Camera.main.nearClipPlane) * 0.75f;
         obj2Cam.Normalize();
-        Vector3 right = Camera.main.transform.right;
-        Vector3 up = Camera.main.transform.up;
-        Vector3 nearest2Obj = targetCenter + obj2Cam * (objMaxLength > obj2CamDiff ? obj2CamDiff : objMaxLength);
+        //Vector3 right = Camera.main.transform.right;
+        //Vector3 up = Camera.main.transform.up;
+        Vector3 nearest2Obj = _target.transform.TransformPoint(targetCenter) + obj2Cam * (objMaxLength > obj2CamDiff ? obj2CamDiff : objMaxLength);
 
         //Convert world destination point on effect plane position
         Vector3 cameraLocalPlaneCenter = Camera.main.transform.InverseTransformPoint(nearest2Obj);
@@ -84,18 +84,17 @@ public class WarpEffectTest : MonoBehaviour
         center2DestOnPlane.Normalize();
 
         //Warp effect plane mesh data initialize
-        Vector3 center = center2DestOnPlaneDiff > objMaxLength * 0.5f ? nearest2Obj + center2DestOnPlane * objMaxLength * 0.5f : nearest2Obj + center2DestOnPlane * center2DestOnPlaneDiff;
-        Vector3 leftBottom = nearest2Obj - right * objMaxLength - up * objMaxLength;
-        Vector3 leftUpper = nearest2Obj - right * objMaxLength + up * objMaxLength;
-        Vector3 rightBottom = nearest2Obj + right * objMaxLength - up * objMaxLength;
-        Vector3 rightUpper = nearest2Obj + right * objMaxLength + up * objMaxLength;
+        Vector3 center = center2DestOnPlaneDiff < objMaxLength * 0.5f ? center2DestOnPlane * center2DestOnPlaneDiff : center2DestOnPlane * objMaxLength * 0.5f;
+        Vector3 leftBottom = - Vector3.right * objMaxLength - Vector3.up * objMaxLength;
+        Vector3 leftUpper = - Vector3.right * objMaxLength + Vector3.up * objMaxLength;
+        Vector3 rightBottom = Vector3.right * objMaxLength - Vector3.up * objMaxLength;
+        Vector3 rightUpper = Vector3.right * objMaxLength + Vector3.up * objMaxLength;
 
-        vertices[0] = center - nearest2Obj;
-        vertices[1] = leftBottom - nearest2Obj;
-        vertices[2] = leftUpper - nearest2Obj;
-        vertices[3] = rightBottom - nearest2Obj;
-        vertices[4] = rightUpper - nearest2Obj;
-        print(vertices[0]);
+        vertices[0] = center;
+        vertices[1] = leftBottom;
+        vertices[2] = leftUpper;
+        vertices[3] = rightBottom;
+        vertices[4] = rightUpper;
 
         tris[0] = 0;
         tris[1] = 2;
@@ -126,14 +125,17 @@ public class WarpEffectTest : MonoBehaviour
         GameObject warpEffect = new GameObject("WarpEffect");
         warpEffect.transform.position = nearest2Obj;
         warpEffect.transform.SetParent(_target.transform);
+        warpEffect.transform.LookAt(Camera.main.transform);
 
         //attach material
         MeshFilter meshFilter = warpEffect.AddComponent<MeshFilter>();
         MeshRenderer meshRenderer = warpEffect.AddComponent<MeshRenderer>();
+        meshRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        meshRenderer.receiveShadows = false;
         meshFilter.mesh = warpPlane;
         meshRenderer.material = m_WarpEffectMaterial;
 
-        meshRenderer.material.SetVector("_WarpFocus", new Vector2((vertices[0].x + objMaxLength) / (2 * objMaxLength), (vertices[0].y + objMaxLength) / (2 * objMaxLength)));//new Vector2(0.5f, 0.5f));
+        meshRenderer.material.SetVector("_WarpFocus", new Vector2((vertices[0].x + objMaxLength) / (2 * objMaxLength), (vertices[0].y + objMaxLength) / (2 * objMaxLength)));
 
         //attach script
         warpEffect.AddComponent<WarpEffect>();
