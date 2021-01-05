@@ -58,14 +58,16 @@ public class WarpEffectTest : MonoBehaviour
         {
             bounds[i] = targetMeshRenderers[i].bounds;
             targetCenter += bounds[i].center;
-            if (bounds[i].max.magnitude > objMaxLength) objMaxLength = bounds[i].max.magnitude;
+            Vector3 max = bounds[i].max - bounds[i].center;
+            if (max.sqrMagnitude > objMaxLength * objMaxLength) objMaxLength = max.magnitude;
         }
         for (int i = 0; i < targetSkinnedMeshRenderers.Length; i++)
         {
             int index = i + targetMeshRenderers.Length;
             bounds[index] = targetSkinnedMeshRenderers[i].bounds;
             targetCenter += bounds[index].center;
-            if (bounds[index].max.magnitude > objMaxLength) objMaxLength = bounds[index].max.magnitude;
+            Vector3 max = bounds[index].max - bounds[index].center;
+            if (max.sqrMagnitude > objMaxLength * objMaxLength) objMaxLength = max.magnitude;
         }
         targetCenter /= bounds.Length;
         Vector3 obj2Cam = Camera.main.transform.position - targetCenter;
@@ -85,6 +87,7 @@ public class WarpEffectTest : MonoBehaviour
 
         //Warp effect plane mesh data initialize
         Vector3 center = center2DestOnPlaneDiff < objMaxLength * 0.5f ? center2DestOnPlane * center2DestOnPlaneDiff : center2DestOnPlane * objMaxLength * 0.5f;
+        print(center);
         Vector3 leftBottom = - Vector3.right * objMaxLength - Vector3.up * objMaxLength;
         Vector3 leftUpper = - Vector3.right * objMaxLength + Vector3.up * objMaxLength;
         Vector3 rightBottom = Vector3.right * objMaxLength - Vector3.up * objMaxLength;
@@ -134,8 +137,8 @@ public class WarpEffectTest : MonoBehaviour
         meshRenderer.receiveShadows = false;
         meshFilter.mesh = warpPlane;
         meshRenderer.material = m_WarpEffectMaterial;
-
-        meshRenderer.material.SetVector("_WarpFocus", new Vector2((vertices[0].x + objMaxLength) / (2 * objMaxLength), (vertices[0].y + objMaxLength) / (2 * objMaxLength)));
+        Vector2 warpFocus = new Vector2((vertices[0].x + objMaxLength) / (2 * objMaxLength), (vertices[0].y + objMaxLength) / (2 * objMaxLength));
+        meshRenderer.material.SetVector("_WarpFocus", warpFocus);
 
         //attach script
         warpEffect.AddComponent<WarpEffect>();
