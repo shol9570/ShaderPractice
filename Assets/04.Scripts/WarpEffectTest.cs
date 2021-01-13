@@ -18,7 +18,12 @@ public class WarpEffectTest : MonoBehaviour
     {
         if (Input.GetMouseButtonUp(1))
         {
-            m_WarpDestination = Camera.main.ScreenToWorldPoint(Input.mousePosition) + Camera.main.transform.forward * 2f;
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            RaycastHit hit;
+            if (Physics.Raycast(ray, out hit))
+            {
+                m_WarpDestination = hit.point;
+            }
         }
     }
 
@@ -81,7 +86,8 @@ public class WarpEffectTest : MonoBehaviour
         Vector3 cameraLocalPlaneCenter = Camera.main.transform.InverseTransformPoint(nearest2Obj);
         Vector3 cameraLocalDestination = Camera.main.transform.InverseTransformPoint(_destination);
         Vector3 destOnEffectPlane = Camera.main.transform.TransformPoint(new Vector3(cameraLocalDestination.x, cameraLocalDestination.y, cameraLocalPlaneCenter.z));
-        Vector3 center2DestOnPlane = destOnEffectPlane - nearest2Obj;
+        Vector3 center2DestOnPlane = Camera.main.transform.InverseTransformVector(destOnEffectPlane - nearest2Obj);
+        center2DestOnPlane.z = -center2DestOnPlane.z;
         float center2DestOnPlaneDiff = center2DestOnPlane.magnitude;
         center2DestOnPlane.Normalize();
 
